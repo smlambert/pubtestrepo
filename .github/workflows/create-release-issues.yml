@@ -67,19 +67,17 @@ jobs:
               continue
             fi
 
-            sub_body=$(printf 'Version: %s\nPlatform: %s\n\nChecklist:\n- [ ] Complete interactive tests\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
+            sub_body=$(printf 'Version: %s\nPlatform: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
 
             if [[ "$SKIP_INTERACTIVES" == "true" ]]; then
               for interactive in "${interactive_platforms[@]}"; do
                 if [[ "$platform" == "$(echo "$interactive" | xargs)" ]]; then
-                  echo "Adjusting issue body for interactive platform: $platform"
-                  sub_body=$(printf 'Version: %s\nPlatform: %s\n\nChecklist:\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nThere are no interactives for this platform.  Close this issue when checklist completed.' "$VERSION" "$platform")
-                fi
+                  echo "No iteractive TCKs for: $platform"
               done
             fi
 
             sub_url=$(gh issue create \
-              --title "Complete TCK for $RELEASE_DATE $VERSION - $platform" \
+              --title "Triage Automated Tests for $RELEASE_DATE $VERSION - $platform" \
               --body "$sub_body" \
               --label "$version_label" \
               --repo "$GITHUB_REPOSITORY")
@@ -90,7 +88,7 @@ jobs:
           parent_body=$(printf 'Version: %s\nPlatforms: %s\nIdentify interactives: %s\n\n## Sub-issues\n%s\n' "$VERSION" "$PLATFORMS" "$SKIP_INTERACTIVES" "$tasks")
 
           gh issue create \
-            --title "$RELEASE_DATE Release TCK Activities - $VERSION" \
+            --title "$RELEASE_DATE Release AQAvit Activities - $VERSION" \
             --body "$parent_body" \
             --label "$version_label" \
             --repo "$GITHUB_REPOSITORY"
