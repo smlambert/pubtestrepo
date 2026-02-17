@@ -1,0 +1,96 @@
+name: Create Release Issues
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (label and titles)"
+        required: true
+        type: string
+      releaseDate:
+        description: "Release date (Month and Year, e.g. 'July 2025')"
+        required: true
+        type: string
+      platforms:
+        description: "Comma-separated platforms for sub-issues"
+        required: false
+        type: string
+      skipInteractives:
+        description: "Adjust interactive platforms"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  create-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create parent and sub-issues
+        env:
+          GH_TOKEN: ${{ secrets.GH_ISSUES_TOKEN || secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          RELEASE_DATE: ${{ inputs.releaseDate }}
+          PLATFORMS: ${{ inputs.platforms }}
+          SKIP_INTERACTIVES: ${{ inputs.skipInteractives }}
+          INTERACTIVE_PLATFORMS: "riscv64_linux,aarch64_alpine-linux,x86-64_alpine-linux"
+          PUBLIC_TEST_REPO: "https://github.com/smlambert/pubtestrepo.git"
+        run: |
+          set -euo pipefail
+
+          version_label="$VERSION"
+
+          if [[ "$VERSION" == "JDK8" ]]; then
+            PLATFORMS="arm_linux,x86-64_windows"
+          elif [[ "$VERSION" == "JDK11" ]]; then
+            PLATFORMS="s390x_linux,x86-64_linux"
+          elif [[ "$VERSION" == "JDK17" ]]; then
+            PLATFORMS="s390x_linux,x86-64_linux"
+          else
+            PLATFORMS="x86-64_mac,aarch64_linux,riscv64_linux"
+          fi
+
+          gh label create "$version_label" -d "Version $version_label" -c "ededed" >/dev/null 2>&1 || true
+
+          IFS=',' read -r -a raw_platforms <<< "$PLATFORMS"
+          IFS=',' read -r -a interactive_platforms <<< "$INTERACTIVE_PLATFORMS"
+
+          tasks=""
+
+          for raw in "${raw_platforms[@]}"; do
+            platform="$(echo "$raw" | xargs)"
+            if [[ -z "$platform" ]]; then
+              continue
+            fi
+
+            sub_body=$(printf 'Version: %s\nPlatform: %s\n\nChecklist:\n- [ ] Complete interactive tests\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
+
+            if [[ "$SKIP_INTERACTIVES" == "true" ]]; then
+              for interactive in "${interactive_platforms[@]}"; do
+                if [[ "$platform" == "$(echo "$interactive" | xargs)" ]]; then
+                  echo "Adjusting issue body for interactive platform: $platform"
+                  sub_body=$(printf 'Version: %s\nPlatform: %s\n\nChecklist:\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nThere are no interactives for this platform.  Close this issue when checklist completed.' "$VERSION" "$platform")
+                fi
+              done
+            fi
+
+            sub_url=$(gh issue create \
+              --title "Complete TCK for $RELEASE_DATE $VERSION - $platform" \
+              --body "$sub_body" \
+              --label "$version_label" \
+              --repo "$GITHUB_REPOSITORY")
+
+            tasks+="- [ ] ($sub_url)"$'\n'
+          done
+
+          parent_body=$(printf 'Version: %s\nPlatforms: %s\nIdentify interactives: %s\n\n## Sub-issues\n%s\n' "$VERSION" "$PLATFORMS" "$SKIP_INTERACTIVES" "$tasks")
+
+          gh issue create \
+            --title "$RELEASE_DATE Release TCK Activities - $VERSION" \
+            --body "$parent_body" \
+            --label "$version_label" \
+            --repo "$GITHUB_REPOSITORY"
