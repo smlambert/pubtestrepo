@@ -73,6 +73,7 @@ jobs:
               for interactive in "${interactive_platforms[@]}"; do
                 if [[ "$platform" == "$(echo "$interactive" | xargs)" ]]; then
                   echo "No iteractive TCKs for: $platform"
+                fi
               done
             fi
 
