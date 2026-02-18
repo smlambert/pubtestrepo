@@ -83,7 +83,7 @@ jobs:
               --label "$version_label" \
               --repo "$GITHUB_REPOSITORY")
 
-            tasks+="- [ ] ($sub_url)"$'\n'
+            tasks+="- [ ] $sub_url"$'\n'
           done
 
           parent_body=$(printf 'Version: %s\nPlatforms: %s\nIdentify interactives: %s\n\n## Sub-issues\n%s\n' "$VERSION" "$PLATFORMS" "$SKIP_INTERACTIVES" "$tasks")
