@@ -39,7 +39,7 @@ jobs:
           RELEASE_DATE: ${{ inputs.releaseDate || github.event.client_payload.releaseDate }}
           PLATFORMS: ${{ inputs.platforms }}
           SKIP_INTERACTIVES: ${{ inputs.skipInteractives }}
-          INTERACTIVE_PLATFORMS: "riscv64_linux,aarch64_alpine-linux,x86-64_alpine-linux
+          INTERACTIVE_PLATFORMS: "riscv64_linux,aarch64_alpine-linux,x86-64_alpine-linux"
         run: |
           set -euo pipefail
 
