@@ -20,7 +20,9 @@ on:
         required: false
         default: true
         type: boolean
-
+  repository_dispatch:
+    types: [custom_event]
+    
 permissions:
   contents: read
   issues: write
