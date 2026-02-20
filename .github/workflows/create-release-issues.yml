@@ -35,12 +35,11 @@ jobs:
       - name: Create parent and sub-issues
         env:
           GH_TOKEN: ${{ secrets.GH_ISSUES_TOKEN || secrets.GITHUB_TOKEN }}
-          VERSION: ${{ inputs.version }}
-          RELEASE_DATE: ${{ inputs.releaseDate }}
+          VERSION: ${{ inputs.version || github.event.client_payload.version }}
+          RELEASE_DATE: ${{ inputs.releaseDate || github.event.client_payload.releaseDate }}
           PLATFORMS: ${{ inputs.platforms }}
           SKIP_INTERACTIVES: ${{ inputs.skipInteractives }}
-          INTERACTIVE_PLATFORMS: "riscv64_linux,aarch64_alpine-linux,x86-64_alpine-linux"
-          PUBLIC_TEST_REPO: "https://github.com/smlambert/pubtestrepo.git"
+          INTERACTIVE_PLATFORMS: "riscv64_linux,aarch64_alpine-linux,x86-64_alpine-linux
         run: |
           set -euo pipefail
 
