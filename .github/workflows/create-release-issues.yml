@@ -11,6 +11,11 @@ on:
         description: "Release date (Month and Year, e.g. 'July 2025')"
         required: true
         type: string
+      matrixInt:
+        description: "A number to determine matrix coverage (0, 1)"
+        required: true
+        default: 1
+        type: number
       platforms:
         description: "Comma-separated platforms for sub-issues"
         required: false
@@ -40,6 +45,7 @@ jobs:
           PLATFORMS: ${{ inputs.platforms }}
           SKIP_INTERACTIVES: ${{ inputs.skipInteractives }}
           INTERACTIVE_PLATFORMS: "riscv64_linux,aarch64_alpine-linux,x86-64_alpine-linux"
+          MATRIX_PRIMARIES_1: 
         run: |
           set -euo pipefail
 
