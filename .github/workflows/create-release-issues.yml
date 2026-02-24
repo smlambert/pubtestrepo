@@ -112,7 +112,7 @@ jobs:
             fi
 
             sub_url=$(gh issue create \
-              --title "Complete TCK for $RELEASE_DATE $VERSION - $platform" \
+              --title "Triage Automated Tests for $RELEASE_DATE $VERSION - $platform" \
               --body "$sub_body" \
               --label "$version_label" \
               --repo "$GITHUB_REPOSITORY")
