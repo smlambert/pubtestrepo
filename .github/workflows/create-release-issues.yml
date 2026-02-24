@@ -12,19 +12,13 @@ on:
         required: true
         type: string
       matrixInt:
-        description: "A number to determine matrix coverage (0, 1)"
-        required: true
-        default: 1
+        description: "Which variant of matrix coverage to apply"
+        required: false
         type: number
-      platforms:
-        description: "Comma-separated platforms for sub-issues"
+      pipelineUrl:
+        description: "URL of the release pipeline"
         required: false
         type: string
-      skipInteractives:
-        description: "Adjust interactive platforms"
-        required: false
-        default: true
-        type: boolean
   repository_dispatch:
     types: [custom_event]
     
@@ -33,7 +27,7 @@ permissions:
   issues: write
   pull-requests: read
 
-jobs:
+jobs:         
   create-issues:
     runs-on: ubuntu-latest
     steps:
@@ -42,44 +36,121 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_ISSUES_TOKEN || secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version || github.event.client_payload.version }}
           RELEASE_DATE: ${{ inputs.releaseDate || github.event.client_payload.releaseDate }}
-          PLATFORMS: ${{ inputs.platforms }}
-          SKIP_INTERACTIVES: ${{ inputs.skipInteractives }}
-          INTERACTIVE_PLATFORMS: "riscv64_linux,aarch64_alpine-linux,x86-64_alpine-linux"
-          MATRIX_PRIMARIES_1: 
+          MATRIX_INT: ${{ inputs.matrixInt || github.event.client_payload.matrixInt }}
+          PRIMARY_PLATFORMS: "aarch64_linux,aarch64_mac,x86-64_linux,x86-64_mac,x86-64_windows"
+          SECONDARY_PLATFORMS: "aarch64_windows,ppc64le_linux,s390x_linux,ppc64_aix"
+          SKIP_INTERACTIVES: "true"
+          HEADLESS_PLATFORMS: "aarch64_alpine-linux,riscv64_linux,x86-64_alpine-linux"
+          SKIP_LIST_1: ""
+          SKIP_LIST_2: "" 
+          PIPELINE_URL: ${{ inputs.pipelineUrl || github.event.client_payload.pipelineUrl }}
         run: |
           set -euo pipefail
 
           version_label="$VERSION"
 
           if [[ "$VERSION" == "JDK8" ]]; then
-            PLATFORMS="arm_linux,x86-64_windows"
+            PRIMARY_PLATFORMS="aarch64_linux,x86-64_linux,x86-64_mac,x86-64_windows"
+            SECONDARY_PLATFORMS="x86-64_alpine-linux,arm_linux,ppc64le_linux,ppc64_aix"
+            SKIP_LIST_1="aarch64_linux,ppc64le_linux"
+            SKIP_LIST_2="arm_linux,x86-64_linux"
           elif [[ "$VERSION" == "JDK11" ]]; then
-            PLATFORMS="s390x_linux,x86-64_linux"
+            SECONDARY_PLATFORMS="x86-64_alpine-linux,arm_linux,ppc64le_linux,s390x_linux,ppc64_aix"
+            SKIP_LIST_1="arm_linux,x86-64_linux,s390x_linux,x86-64_mac"
+            SKIP_LIST_2="aarch64_linux,ppc64le_linux,aarch64_mac"
           elif [[ "$VERSION" == "JDK17" ]]; then
-            PLATFORMS="s390x_linux,x86-64_linux"
+            SECONDARY_PLATFORMS="riscv64_linux,x86-64_alpine-linux,arm_linux,ppc64le_linux,s390x_linux,ppc64_aix"
+            SKIP_LIST_1="aarch64_linux,ppc64le_linux,aarch64_mac"
+            SKIP_LIST_2="arm_linux,x86-64_linux,s390x_linux,x86-64_mac"
           else
-            PLATFORMS="x86-64_mac,aarch64_linux,riscv64_linux"
+            SECONDARY_PLATFORMS="aarch64_alpine-linux,riscv64_linux,x86-64_alpine-linux,aarch64_windows,ppc64le_linux,s390x_linux,ppc64_aix"
+            SKIP_LIST_1="arm_linux,x86-64_linux,s390x_linux,x86-64_mac,aarch64_windows"
+            SKIP_LIST_2="aarch64_linux,ppc64le_linux,aarch64_mac,x86-64_windows"
           fi
 
           gh label create "$version_label" -d "Version $version_label" -c "ededed" >/dev/null 2>&1 || true
 
-          IFS=',' read -r -a raw_platforms <<< "$PLATFORMS"
-          IFS=',' read -r -a interactive_platforms <<< "$INTERACTIVE_PLATFORMS"
+          IFS=',' read -r -a primary_platforms <<< "$PRIMARY_PLATFORMS"
+          IFS=',' read -r -a secondary_platforms <<< "$SECONDARY_PLATFORMS"
+          IFS=',' read -r -a headless_platforms <<< "$HEADLESS_PLATFORMS"
+          IFS=',' read -r -a skip_list_1 <<< "$SKIP_LIST_1"
+          IFS=',' read -r -a skip_list_2 <<< "$SKIP_LIST_2"
 
           tasks=""
 
-          for raw in "${raw_platforms[@]}"; do
+          for raw in "${primary_platforms[@]}"; do
+            platform="$(echo "$raw" | xargs)"
+            if [[ -z "$platform" ]]; then
+              continue
+            fi
+
+            sub_body=$(printf 'Version: %s\nPlatform: %s\n\nChecklist:\n- [ ] Complete interactive tests\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
+
+            if [[ "$SKIP_INTERACTIVES" == "true" ]]; then
+              for interactive in "${headless_platforms[@]}"; do
+                if [[ "$platform" == "$(echo "$interactive" | xargs)" ]]; then
+                  echo "Adjusting issue body for non-interactive platform: $platform"
+                  sub_body=$(printf 'Version: %s\nHeadless Platform: %s\n\nChecklist:\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nThere are no interactives for this platform.  Close this issue when checklist completed.' "$VERSION" "$platform")
+                fi
+              done
+            fi
+
+            if [[ "$MATRIX_INT" == "1" ]]; then
+              for skip_entry in "${skip_list_1[@]}"; do
+                if [[ "$platform" == "$(echo "$skip_entry" | xargs)" ]]; then
+                  echo "Adjusting issue body for skipped platform (SKIP_LIST_1): $platform"
+                  sub_body=$(printf 'Version: %s\nPlatform: %s\n\nSkipping interactive tests for this platform (matrix configuration 1).\n\nChecklist:\n- [x] Complete interactive tests\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
+                fi
+              done
+            elif [[ "$MATRIX_INT" == "2" ]]; then
+              for skip_entry in "${skip_list_2[@]}"; do
+                if [[ "$platform" == "$(echo "$skip_entry" | xargs)" ]]; then
+                  echo "Adjusting issue body for skipped platform (SKIP_LIST_2): $platform"
+                  sub_body=$(printf 'Version: %s\nPlatform: %s\n\nSkipping interactive tests for this platform (matrix configuration 2).\n\nChecklist:\n- [x] Complete interactive tests\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
+                fi
+              done
+            fi
+
+            sub_url=$(gh issue create \
+              --title "Complete TCK for $RELEASE_DATE $VERSION - $platform" \
+              --body "$sub_body" \
+              --label "$version_label" \
+              --repo "$GITHUB_REPOSITORY")
+
+            tasks+="- [ ] $sub_url"$'\n'
+          done
+
+          secondary_tasks=""
+
+          for raw in "${secondary_platforms[@]}"; do
             platform="$(echo "$raw" | xargs)"
             if [[ -z "$platform" ]]; then
               continue
             fi
 
             sub_body=$(printf 'Version: %s\nPlatform: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
-
+            
             if [[ "$SKIP_INTERACTIVES" == "true" ]]; then
-              for interactive in "${interactive_platforms[@]}"; do
+              for interactive in "${headless_platforms[@]}"; do
                 if [[ "$platform" == "$(echo "$interactive" | xargs)" ]]; then
-                  echo "No iteractive TCKs for: $platform"
+                  echo "Adjusting issue body for non-interactive platform: $platform"
+                  sub_body=$(printf 'Version: %s\nHeadless Platform: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
+                fi
+              done
+            fi
+
+            if [[ "$MATRIX_INT" == "1" ]]; then
+              for skip_entry in "${skip_list_1[@]}"; do
+                if [[ "$platform" == "$(echo "$skip_entry" | xargs)" ]]; then
+                  echo "Adjusting issue body for skipped platform (SKIP_LIST_1): $platform"
+                  sub_body=$(printf 'Version: %s\Matrix 1 Platform: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
+                fi
+              done
+            elif [[ "$MATRIX_INT" == "2" ]]; then
+              for skip_entry in "${skip_list_2[@]}"; do
+                if [[ "$platform" == "$(echo "$skip_entry" | xargs)" ]]; then
+                  echo "Adjusting issue body for skipped platform (SKIP_LIST_2): $platform"
+                  sub_body=$(printf 'Version: %s\Matrix 2 Platform: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
                 fi
               done
             fi
@@ -90,10 +161,10 @@ jobs:
               --label "$version_label" \
               --repo "$GITHUB_REPOSITORY")
 
-            tasks+="- [ ] $sub_url"$'\n'
+            secondary_tasks+="- [ ] $sub_url"$'\n'
           done
 
-          parent_body=$(printf 'Version: %s\nPlatforms: %s\nIdentify interactives: %s\n\n## Sub-issues\n%s\n' "$VERSION" "$PLATFORMS" "$SKIP_INTERACTIVES" "$tasks")
+          parent_body=$(printf 'Pipeline URL: %s\nVersion: %s\nPrimary Platforms: %s\nSecondary Platforms: %s\n\n### Primary Tasks\n\n%s\n### Secondary Tasks\n\n%s\n' "$PIPELINE_URL" "$VERSION" "$PRIMARY_PLATFORMS" "$SECONDARY_PLATFORMS" "$tasks" "$secondary_tasks")
 
           gh issue create \
             --title "$RELEASE_DATE Release AQAvit Activities - $VERSION" \
