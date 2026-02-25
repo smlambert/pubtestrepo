@@ -84,29 +84,13 @@ jobs:
               continue
             fi
 
-            sub_body=$(printf 'Version: %s\nPlatform: %s\n\nChecklist:\n- [ ] Complete interactive tests\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
-
+            sub_body=$(printf 'Version: %s\nPlatform: %s\nMatrix: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform" "$MATRIX_INT")
+            
             if [[ "$SKIP_INTERACTIVES" == "true" ]]; then
               for interactive in "${headless_platforms[@]}"; do
                 if [[ "$platform" == "$(echo "$interactive" | xargs)" ]]; then
                   echo "Adjusting issue body for non-interactive platform: $platform"
-                  sub_body=$(printf 'Version: %s\nHeadless Platform: %s\n\nChecklist:\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nThere are no interactives for this platform.  Close this issue when checklist completed.' "$VERSION" "$platform")
-                fi
-              done
-            fi
-
-            if [[ "$MATRIX_INT" == "1" ]]; then
-              for skip_entry in "${skip_list_1[@]}"; do
-                if [[ "$platform" == "$(echo "$skip_entry" | xargs)" ]]; then
-                  echo "Adjusting issue body for skipped platform (SKIP_LIST_1): $platform"
-                  sub_body=$(printf 'Version: %s\nPlatform: %s\n\nSkipping interactive tests for this platform (matrix configuration 1).\n\nChecklist:\n- [x] Complete interactive tests\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
-                fi
-              done
-            elif [[ "$MATRIX_INT" == "2" ]]; then
-              for skip_entry in "${skip_list_2[@]}"; do
-                if [[ "$platform" == "$(echo "$skip_entry" | xargs)" ]]; then
-                  echo "Adjusting issue body for skipped platform (SKIP_LIST_2): $platform"
-                  sub_body=$(printf 'Version: %s\nPlatform: %s\n\nSkipping interactive tests for this platform (matrix configuration 2).\n\nChecklist:\n- [x] Complete interactive tests\n- [ ] Complete auto-manual tests\n- [ ] Confirm automated test results\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
+                  sub_body=$(printf 'Version: %s\nHeadless Platform: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
                 fi
               done
             fi
@@ -128,29 +112,13 @@ jobs:
               continue
             fi
 
-            sub_body=$(printf 'Version: %s\nPlatform: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
+            sub_body=$(printf 'Version: %s\nPlatform: %s\nMatrix: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform" "$MATRIX_INT")
             
             if [[ "$SKIP_INTERACTIVES" == "true" ]]; then
               for interactive in "${headless_platforms[@]}"; do
                 if [[ "$platform" == "$(echo "$interactive" | xargs)" ]]; then
                   echo "Adjusting issue body for non-interactive platform: $platform"
                   sub_body=$(printf 'Version: %s\nHeadless Platform: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
-                fi
-              done
-            fi
-
-            if [[ "$MATRIX_INT" == "1" ]]; then
-              for skip_entry in "${skip_list_1[@]}"; do
-                if [[ "$platform" == "$(echo "$skip_entry" | xargs)" ]]; then
-                  echo "Adjusting issue body for skipped platform (SKIP_LIST_1): $platform"
-                  sub_body=$(printf 'Version: %s\Matrix 1 Platform: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
-                fi
-              done
-            elif [[ "$MATRIX_INT" == "2" ]]; then
-              for skip_entry in "${skip_list_2[@]}"; do
-                if [[ "$platform" == "$(echo "$skip_entry" | xargs)" ]]; then
-                  echo "Adjusting issue body for skipped platform (SKIP_LIST_2): $platform"
-                  sub_body=$(printf 'Version: %s\Matrix 2 Platform: %s\n\nChecklist:\n- [ ] Triage AQAvit tests\n- [ ] Triage TCK automated tests\n %s\n\nClose this issue when checklist completed.' "$VERSION" "$platform")
                 fi
               done
             fi
