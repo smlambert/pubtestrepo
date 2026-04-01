@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (label and titles)"
+        description: "Release version (label and titles, i.e. 8 or 21)"
         required: true
         type: string
       releaseDate:
@@ -34,7 +34,7 @@ jobs:
       - name: Create parent and sub-issues
         env:
           GH_TOKEN: ${{ secrets.GH_ISSUES_TOKEN || secrets.GITHUB_TOKEN }}
-          VERSION: ${{ inputs.version || github.event.client_payload.version }}
+          VERSION: "JDK${{ inputs.version || github.event.client_payload.version }}"
           RELEASE_DATE: ${{ inputs.releaseDate || github.event.client_payload.releaseDate }}
           MATRIX_INT: ${{ inputs.matrixInt || github.event.client_payload.matrixInt }}
           PRIMARY_PLATFORMS: "aarch64_linux,aarch64_mac,x86-64_linux,x86-64_mac,x86-64_windows"
